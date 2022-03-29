@@ -1,7 +1,9 @@
-export const config = {
+export let config = {
   "name": "juiceboxDAO",
   "guildId": "889377541675159602",
   "channelId": "889377541675159605",
+  "proposalIdPrefix": "JBP-",
+  "proposalIdProperty": "Juicebox Proposal ID",
   "governanceDb": {
     "location": "notion",
     "id": "f667423e111d4c07b6703921f1ae1f3e",
@@ -22,21 +24,41 @@ export const config = {
   "proposalDb": {
     "location": "notion",
     "id": "785d96f6a860474daef1bb9fa6926edd",
-    "filter": { "and" : 
-      [
-        {
-          "property": "Status",
-          "select": {
-            "equals":"Discussion"
-          }
-        },
-        {
-          "property": "Discussion Thread",
-          "url": {
-            "is_empty":true
-          }
+    "preDiscussionFilter": {
+      "and" : [
+      {
+        "property": "Status",
+        "select": {
+          "equals":"Discussion"
         }
-      ]
+      },
+      {
+        "property": "Discussion Thread",
+        "url": {
+          "is_empty": true
+        }
+      }]
+    },
+    "discussionFilter": {
+      "and" : [
+      {
+        "property": "Status",
+        "select": {
+          "equals":"Discussion"
+        }
+      },
+      {
+        "property": "Discussion Thread",
+        "url": {
+          "is_not_empty": true
+        }
+      }]
+    },
+    "proposalIdFilter": {
+      "property": null,
+      "rich_text": {
+        "contains": "JBP-"
+      }
     }
   },
   "cycleDays": 14,

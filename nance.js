@@ -2,7 +2,7 @@ import { Client as notionClient } from '@notionhq/client';
 import { Client as discordClient, Intents, MessageEmbed } from 'discord.js';
 import schedule from 'node-schedule';
 import { keys } from './keys.js';
-import { log } from './utils.js';
+import { log, sleep } from './utils.js';
 import { config } from './config.js';
 
 const notion = new notionClient({ auth: keys.NOTION_KEY })
@@ -36,7 +36,7 @@ async function queueNextGovernanceAction(){
   let action;
   if (nextAction === 'Governance Cycle, Temperature Check'){
     action = schedule.scheduleJob(nextDate, () => {
-      //temperatureCheckSetup();
+      temperatureCheckSetup();
     })  
   } else if (nextAction === 'Governance Cycle, Voting Off-Chain'){
     action = schedule.scheduleJob(nextDate, () => {
@@ -54,6 +54,55 @@ async function updateProperty(pageId, property, updateData) {
     properties: {
       [`${property}`]: updateData
     }
+  })
+}
+
+async function getProposalIdNum() {
+  config.proposalDb.proposalIdFilter.property = config.proposalIdProperty
+  const proposalsWithIds = await checkNotionDb(config.proposalDb.id, config.proposalDb.proposalIdFilter)
+  const sortedProposalIds = proposalsWithIds.results.map(p => {
+    return parseInt(p.properties[config.proposalIdProperty].rich_text[0].plain_text.split(config.proposalIdPrefix)[1])
+  }).sort((a,b) => { return b - a });
+  return sortedProposalIds[0];
+}
+
+async function temperatureCheckSetup() {
+  const currentProposalId = await getProposalIdNum()
+  const discussions = await checkNotionDb(config.proposalDb.id, config.proposalDb.discussionFilter)
+  discussions.results.forEach( async (d, i) => {
+    const nextProposalId = currentProposalId + 1 + i
+    updateProperty(d.id, 'Status', { select: { name: 'Temperature Check' }})
+    const discordThreadUrl = d.properties['Discussion Thread'].url.split('/')
+    const discordThreadId = discordThreadUrl[discordThreadUrl.length - 1]
+    const proposalTitle = d.properties.Name.title.map(t => {
+      return t.plain_text
+    }).join(' ');
+    const message = new MessageEmbed()
+      .setTitle('🌡')
+      .addField('Proposal', `[${proposalTitle}](${d.url})`)
+    const discordChannel = discord.channels.cache.get(discordThreadId);
+    const temperatureCheckPollId = await discordChannel.send({ embeds: [message] }).then(m => {
+      m.react('👍')
+      m.react('👎')
+      return m.id
+    })
+    
+    await notion.pages.update({
+      page_id: d.id,
+      properties: {
+        'Temperature Check': {
+          url :`https://discord.com/channels/${config.guildId}/${discordThreadId}/${temperatureCheckPollId}`
+        },
+        [config.proposalIdProperty]: {
+          rich_text: [
+            {
+              type: "text",
+              text: { content: `${config.proposalIdPrefix}${nextProposalId}` }
+            }
+          ]
+        }
+      }
+    })
   })
 }
 
@@ -80,15 +129,18 @@ async function startThread(proposal) {
 }
 
 async function handleDiscussions(){
-  checkNotionDb(config.proposalDb.id, config.proposalDb.filter).then(r=>{
+  checkNotionDb(config.proposalDb.id, config.proposalDb.preDiscussionFilter).then(r=>{
     r.results.forEach((p) => {
       startThread(p).then((url)=> { 
-        updateProperty(p.id, 'Discussion Thread', {url: url});
+        updateProperty(p.id, 'Discussion Thread', { url: url });
         log(`New proposal to dicsuss: ${p.url}`);
       });
     })
   });
 }
 
-//setInterval(handleDiscussions, 1*60*1000);
-queueNextGovernanceAction()
+//setInterval(handleDiscussions, 1000);
+//queueNextGovernanceAction()
+//handleDiscussions()
+setInterval(temperatureCheckSetup, 1000);
+//getNextProposalIdIndex()
