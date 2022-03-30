@@ -2,9 +2,10 @@ export let config = {
   "name": "juiceboxDAO",
   "guildId": "889377541675159602",
   "channelId": "889377541675159605",
+  "alertRole": "958529682796605440",
   "proposalIdPrefix": "JBP-",
   "proposalIdProperty": "Juicebox Proposal ID",
-  "governanceDb": {
+  "governanceScheduleDb": {
     "location": "notion",
     "id": "f667423e111d4c07b6703921f1ae1f3e",
     "filter": {
@@ -49,6 +50,27 @@ export let config = {
       },
       {
         "property": "Discussion Thread",
+        "url": {
+          "is_not_empty": true
+        }
+      }]
+    },
+    "proposalIdFilter": {
+      "property": null,
+      "rich_text": {
+        "contains": "JBP-"
+      }
+    },
+    "temperatureCheckFilter": {
+      "and" : [
+      {
+        "property": "Status",
+        "select": {
+          "equals":"Temperature Check"
+        }
+      },
+      {
+        "property": "Temperature Check",
         "url": {
           "is_not_empty": true
         }

@@ -11,3 +11,7 @@ export function log(text, type='l') {
     console.log('\x1b[32m%s\x1b[0m',`${new Date().toISOString()}\t${text}`);
   }
 }
+
+export function addDaysToDate(date, days) {
+  return new Date(date.getTime() + (days * 24 * 60 * 60 * 1000))
+}

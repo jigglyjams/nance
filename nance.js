@@ -2,7 +2,7 @@ import { Client as notionClient } from '@notionhq/client';
 import { Client as discordClient, Intents, MessageEmbed } from 'discord.js';
 import schedule from 'node-schedule';
 import { keys } from './keys.js';
-import { log, sleep } from './utils.js';
+import { log, sleep, addDaysToDate } from './utils.js';
 import { config } from './config.js';
 
 const notion = new notionClient({ auth: keys.NOTION_KEY })
@@ -27,25 +27,37 @@ async function checkNotionDb(dbId, dbFilter, dbSort=[]) {
 }
 
 async function queueNextGovernanceAction(){
-  const calendar = await checkNotionDb(config.governanceDb.id, config.governanceDb.filter, config.governanceDb.sorts)
+  const calendar = await checkNotionDb(config.governanceScheduleDb.id, config.governanceScheduleDb.filter, config.governanceScheduleDb.sorts)
   const nextEvent = calendar.results[0].properties
   const nextDate = new Date(nextEvent.Date.date.start)
-  const nextAction = nextEvent.Tags.multi_select.map(tag => {
+  const endDate = addDaysToDate(nextDate, nextEvent['Number of Days'].number);
+  const nextAction = await nextEvent.Tags.multi_select.map(tag => {
     return tag.name
   }).join(', ')
   let action;
   if (nextAction === 'Governance Cycle, Temperature Check'){
-    action = schedule.scheduleJob(nextDate, () => {
-      temperatureCheckSetup();
-    })  
+    action = schedule.scheduleJob('Temperature Check', nextDate, () => {
+      temperatureCheckSetup(endDate);
+    })
   } else if (nextAction === 'Governance Cycle, Voting Off-Chain'){
-    action = schedule.scheduleJob(nextDate, () => {
+    action = schedule.scheduleJob('Voting Off-Chain', nextDate, () => {
       //votingOffChainSetup();
     })
+  } else if (nextAction === 'Governance Cycle, Execution'){
+    action = schedule.scheduleJob('Execution', nextDate, () => {
+      //votingExecutionSetup();
+    })
   }
-  action.on('success', () => {
-    queueNextGovernanceAction()
-  })
+
+  try {
+    action.on('success', () => {
+      queueNextGovernanceAction()
+    })
+  } catch(e) {
+    log('no action to queue, check notion calendar!', 'e')
+  }
+
+  log(`${config.name}: ${Object.keys(schedule.scheduledJobs)[0]} to run at ${nextDate}`);
 }
 
 async function updateProperty(pageId, property, updateData) {
@@ -66,10 +78,13 @@ async function getProposalIdNum() {
   return sortedProposalIds[0];
 }
 
-async function temperatureCheckSetup() {
+async function temperatureCheckSetup(endDate) {
   const currentProposalId = await getProposalIdNum()
+  const unixTimeStampEnd = Math.floor(endDate.getTime()/1000)
+  let temperatureCheckRollupMessage = `React in the temperature checks before <t:${unixTimeStampEnd}>\n`;
   const discussions = await checkNotionDb(config.proposalDb.id, config.proposalDb.discussionFilter)
-  discussions.results.forEach( async (d, i) => {
+  for (let i=0; i< discussions.results.length; i++) {
+    const d = discussions.results[i];
     const nextProposalId = currentProposalId + 1 + i
     updateProperty(d.id, 'Status', { select: { name: 'Temperature Check' }})
     const discordThreadUrl = d.properties['Discussion Thread'].url.split('/')
@@ -78,32 +93,58 @@ async function temperatureCheckSetup() {
       return t.plain_text
     }).join(' ');
     const message = new MessageEmbed()
-      .setTitle('🌡')
+      .setTitle('Temperature Check Poll')
       .addField('Proposal', `[${proposalTitle}](${d.url})`)
     const discordChannel = discord.channels.cache.get(discordThreadId);
     const temperatureCheckPollId = await discordChannel.send({ embeds: [message] }).then(m => {
-      m.react('👍')
-      m.react('👎')
+      m.react('👍').then(()=>{
+        m.react('👎')
+      })
       return m.id
     })
-    
+
+    const temperatureCheckUrl = `https://discord.com/channels/${config.guildId}/${discordThreadId}/${temperatureCheckPollId}`
+    temperatureCheckRollupMessage += `${i+1}. ${proposalTitle}: ${temperatureCheckUrl}\n\n`
+
+    // have to update both properties at once or there are conflicts
     await notion.pages.update({
       page_id: d.id,
       properties: {
         'Temperature Check': {
-          url :`https://discord.com/channels/${config.guildId}/${discordThreadId}/${temperatureCheckPollId}`
+          url : temperatureCheckUrl
         },
         [config.proposalIdProperty]: {
           rich_text: [
             {
-              type: "text",
+              type: 'text',
               text: { content: `${config.proposalIdPrefix}${nextProposalId}` }
             }
           ]
         }
       }
     })
-  })
+  }
+
+  // edit and send roll up temperature check discord message
+  temperatureCheckRollupMessage += `<@&${config.alertRole}>`
+  const rollup = new MessageEmbed()
+    .setTitle('Temperature Checks')
+    .setDescription(temperatureCheckRollupMessage)
+  discord.channels.cache.get(config.channelId).send({embeds: [rollup]});
+  log(`${config.name} temperature check complete.`)
+  
+}
+
+async function closeTemperatureCheck() {
+  // get current proposals in temperature check 
+  const temperatureCheckProposals = await checkNotionDb(config.proposalDb.id, config.proposalDb.temperatureCheckFilter)
+  for (let i=0; i < temperatureCheckProposals.length; i++) {
+    d = temperatureCheckProposals.results[i]
+    const discordTemperatureCheckUrl = d.properties['Discussion Thread'].url.split('/')
+    const discordTemperatureCheckId = discordTemperatureCheckUrl[discordTemperatureCheckUrl.length - 1]
+    //WIP to tired
+
+  }
 }
 
 async function startThread(proposal) {
@@ -139,8 +180,15 @@ async function handleDiscussions(){
   });
 }
 
-//setInterval(handleDiscussions, 1000);
-//queueNextGovernanceAction()
+process.on('SIGINT', function () { 
+  schedule.gracefulShutdown().then(() => {
+    log('schedule shutdown.', 'g');
+    process.exit(0);
+  })
+})
+
+//setInterval(handleDiscussions, 10*1000);
+queueNextGovernanceAction()
 //handleDiscussions()
-setInterval(temperatureCheckSetup, 1000);
+//temperatureCheckSetup()
 //getNextProposalIdIndex()
