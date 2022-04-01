@@ -10,6 +10,7 @@ const notion = new notionClient({ auth: keys.NOTION_KEY })
 const discord = new discordClient({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES, Intents.FLAGS.GUILD_MESSAGE_REACTIONS] });
 discord.once('ready', async c => {
   log(`Ready! Logged in as ${c.user.tag}`);
+  closeTemperatureCheck()
 });
 discord.login(keys.DISCORD_KEY);
 
@@ -97,8 +98,8 @@ async function temperatureCheckSetup(endDate) {
       .addField('Proposal', `[${proposalTitle}](${d.url})`)
     const discordChannel = discord.channels.cache.get(discordThreadId);
     const temperatureCheckPollId = await discordChannel.send({ embeds: [message] }).then(m => {
-      m.react('👍').then(()=>{
-        m.react('👎')
+      m.react(config.poll.voteYesEmoji).then(()=>{
+        m.react(config.poll.voteNoEmoji)
       })
       return m.id
     })
@@ -135,15 +136,36 @@ async function temperatureCheckSetup(endDate) {
   
 }
 
+function pollPassCheck(yes, no) {
+  const ratio = no !== 0 ? yes/no : yes;
+  if (yes >= config.poll.minYesVotes && ratio >= config.poll.yesNoRatio) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
 async function closeTemperatureCheck() {
   // get current proposals in temperature check 
+  // getting discord reactions on old messages is kinda hard:
+  // https://stackoverflow.com/questions/64241315/is-there-a-way-to-get-reactions-on-an-old-message-in-discordjs/64242640#64242640
   const temperatureCheckProposals = await checkNotionDb(config.proposalDb.id, config.proposalDb.temperatureCheckFilter)
-  for (let i=0; i < temperatureCheckProposals.length; i++) {
-    d = temperatureCheckProposals.results[i]
-    const discordTemperatureCheckUrl = d.properties['Discussion Thread'].url.split('/')
-    const discordTemperatureCheckId = discordTemperatureCheckUrl[discordTemperatureCheckUrl.length - 1]
-    //WIP to tired
+  for (let i=0; i < temperatureCheckProposals.results.length; i++) {
+    const d = temperatureCheckProposals.results[i]
+    const temperatureCheckUrl = d.properties['Temperature Check'].url.split('/')
+    const discordThreadId = temperatureCheckUrl[temperatureCheckUrl.length - 2]
+    const temperatureCheckPollId = temperatureCheckUrl[temperatureCheckUrl.length - 1]
+    const pollMessage = await discord.channels.cache.get(discordThreadId).messages.fetch(temperatureCheckPollId)
+    const pollReactionsCollection = await pollMessage.reactions.cache
+    const yesVoteUsers = await pollReactionsCollection.get(config.poll.voteYesEmoji).users.fetch().then(results => results.filter(user => !user.bot).map(user => user.tag))
+    const noVoteUsers = await pollReactionsCollection.get(config.poll.voteNoEmoji).users.fetch().then(results => results.filter(user => !user.bot).map(user => user.tag))
 
+    const yesVotes = yesVoteUsers.length;
+    const noVotes = noVoteUsers.length;
+
+    if (pollPassCheck(yesVotes, noVotes)) {
+      discord.channels.cache.get(discordThreadId).send('yes');
+    }
   }
 }
 
