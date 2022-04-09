@@ -1,11 +1,23 @@
 import { Client as notionClient } from '@notionhq/client';
 import { Client as discordClient, Intents, MessageEmbed } from 'discord.js';
+import { NotionToMarkdown } from 'notion-to-md';
+import fs from 'fs';
+import pinataSDK from '@pinata/sdk';
 import schedule from 'node-schedule';
+import * as notionGrab from './notionGrab.js';
 import { keys } from './keys.js';
 import { log, sleep, addDaysToDate } from './utils.js';
 import { config } from './config.js';
 
-const notion = new notionClient({ auth: keys.NOTION_KEY })
+const notion = new notionClient({ auth: keys.NOTION_KEY });
+const notionToMd = new NotionToMarkdown({ notionClient: notion });
+
+const pinata = pinataSDK(keys.PINATA_KEY.KEY, keys.PINATA_KEY.SECRET);
+pinata.testAuthentication().then( r => {
+  log(`pinataSDK auth: ${r.authenticated}`, 'g');
+}).catch(() => {
+  log(`pinataSDK auth: failed`, 'e');
+})
 
 const discord = new discordClient({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES, Intents.FLAGS.GUILD_MESSAGE_REACTIONS] });
 discord.once('ready', async c => {
@@ -73,12 +85,12 @@ async function getProposalIdNum() {
   config.proposalDb.proposalIdFilter.property = config.proposalIdProperty
   const proposalsWithIds = await checkNotionDb(config.proposalDb.id, config.proposalDb.proposalIdFilter)
   const sortedProposalIds = proposalsWithIds.results.map(p => {
-    return parseInt(p.properties[config.proposalIdProperty].rich_text[0].plain_text.split(config.proposalIdPrefix)[1])
+    return parseInt(notionGrab.richText(p, config.proposalIdProperty).split(config.proposalIdPrefix)[1])
   }).sort((a,b) => { return b - a });
   return sortedProposalIds[0];
 }
 
-async function temperatureCheckSetup(endDate) {
+export async function temperatureCheckSetup(endDate) {
   const currentProposalId = await getProposalIdNum()
   const unixTimeStampEnd = Math.floor(endDate.getTime()/1000)
   let temperatureCheckRollupMessage = `React in the temperature checks before <t:${unixTimeStampEnd}>\n`;
@@ -89,9 +101,7 @@ async function temperatureCheckSetup(endDate) {
     updateProperty(d.id, 'Status', { select: { name: 'Temperature Check' }})
     const discordThreadUrl = d.properties['Discussion Thread'].url.split('/')
     const discordThreadId = discordThreadUrl[discordThreadUrl.length - 1]
-    const proposalTitle = d.properties.Name.title.map(t => {
-      return t.plain_text
-    }).join(' ');
+    const proposalTitle = notionGrab.title(d);
     const message = new MessageEmbed()
       .setTitle('Temperature Check Poll')
       .addField('Proposal', `[${proposalTitle}](${d.url})`)
@@ -144,7 +154,7 @@ function pollPassCheck(yes, no) {
   }
 }
 
-async function closeTemperatureCheck() {
+export async function closeTemperatureCheck() {
   // get current proposals in temperature check 
   // getting discord reactions on old messages is kinda hard:
   // https://stackoverflow.com/questions/64241315/is-there-a-way-to-get-reactions-on-an-old-message-in-discordjs/64242640#64242640
@@ -166,6 +176,7 @@ async function closeTemperatureCheck() {
     if (pollPassCheck(yesVotes, noVotes)) {
       updateProperty(d.id, 'Status', { select: { name: 'Voting' }});
       results.setTitle(`Temperature Check ${config.poll.voteYesEmoji}`);
+      votingOffChainSetup(d);
     } else {
       updateProperty(d.id, 'Status', { select: { name: 'Cancelled' }});
       results.setTitle(`Temperature Check ${config.poll.voteNoEmoji}`);
@@ -177,18 +188,34 @@ async function closeTemperatureCheck() {
   }
 }
 
+export async function votingOffChainSetup(page) {
+  // convert notion blocks to markdown string
+  const mdBlocks = await notionToMd.pageToMarkdown(page.id);
+  let mdString = notionToMd.toMarkdownString(mdBlocks);
+  
+  // append proposal id to text
+  const proposalTitle = notionGrab.title(page)
+  const proposalId = notionGrab.richText(page, config.proposalIdProperty);
+  mdString = `# ${proposalId} - ${proposalTitle}\n${mdString}`
+
+  // write to tmp folder then pin then delete file
+  fs.writeFileSync(`./tmp/${page.id}.md`, mdString);
+  const cid = await pinata.pinFromFS(`./tmp/${page.id}.md`).then(r => {
+    fs.rmSync(`./tmp/${page.id}.md`);
+    return(r.IpfsHash);
+  })
+  const ipfsUrl = `${config.IpfsGateway}/${cid}`
+  log(`${config.name}: ${proposalId} - ${proposalTitle} pinned to ${ipfsUrl}`)
+}
+
 async function startThread(proposal) {
   // notion api sometimes splits out the title into multiple objects, map into single string separated by ' '
-  const proposalTitle = proposal.properties.Name.title.map(t => {
-    return t.plain_text
-  }).join(' ');
+  const proposalTitle = notionGrab.title(proposal);
   const proposalUrl = proposal.url;
   const discordChannel = discord.channels.cache.get(config.channelId);
 
   // some proposals have multiple categories, map them into a single string separated by ' & '
-  const proposalType = proposal.properties.Category.multi_select.map(p => {
-    return p.name
-  }).join(' & ');
+  const proposalType = notionGrab.categoryText(proposal)
   
   const message = await discordChannel.send(`New **${proposalType}** proposal: ${proposalUrl}`);
   return message.startThread({
@@ -199,7 +226,7 @@ async function startThread(proposal) {
   });
 }
 
-async function handleDiscussions(){
+export async function handleDiscussions(){
   checkNotionDb(config.proposalDb.id, config.proposalDb.preDiscussionFilter).then(r=>{
     r.results.forEach((p) => {
       startThread(p).then((url)=> { 
@@ -216,8 +243,3 @@ process.on('SIGINT', function () {
     process.exit(0);
   })
 })
-
-//setInterval(handleDiscussions, 10*1000);
-//setInterval(queueNextGovernanceAction, 10*1000);
-//handleDiscussions()
-//getNextProposalIdIndex()

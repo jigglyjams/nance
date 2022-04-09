@@ -10,6 +10,7 @@ export let config = {
     "yesNoRatio": 0.3
   },
   "proposalIdPrefix": "JBP-",
+  "IpfsGateway": "https://gateway.pinata.cloud/ipfs",
   "proposalIdProperty": "Juicebox Proposal ID",
   "governanceScheduleDb": {
     "location": "notion",
@@ -30,7 +31,7 @@ export let config = {
   },
   "proposalDb": {
     "location": "notion",
-    "id": "785d96f6a860474daef1bb9fa6926edd",
+    "id": "40b2c74a527a4d06aae2c9656a12f98d",
     "preDiscussionFilter": {
       "and" : [
       {
