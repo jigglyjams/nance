@@ -6,7 +6,7 @@ export let config = {
   "poll": {
     "voteYesEmoji": '👍',
     "voteNoEmoji": '👎',
-    "minYesVotes": 2,
+    "minYesVotes": 1,
     "yesNoRatio": 0.3
   },
   "proposalIdPrefix": "JBP-",

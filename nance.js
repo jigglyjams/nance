@@ -10,7 +10,7 @@ const notion = new notionClient({ auth: keys.NOTION_KEY })
 const discord = new discordClient({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES, Intents.FLAGS.GUILD_MESSAGE_REACTIONS] });
 discord.once('ready', async c => {
   log(`Ready! Logged in as ${c.user.tag}`);
-  closeTemperatureCheck()
+  //closeTemperatureCheck()
 });
 discord.login(keys.DISCORD_KEY);
 
@@ -28,37 +28,36 @@ async function checkNotionDb(dbId, dbFilter, dbSort=[]) {
 }
 
 async function queueNextGovernanceAction(){
-  const calendar = await checkNotionDb(config.governanceScheduleDb.id, config.governanceScheduleDb.filter, config.governanceScheduleDb.sorts)
-  const nextEvent = calendar.results[0].properties
-  const nextDate = new Date(nextEvent.Date.date.start)
-  const endDate = addDaysToDate(nextDate, nextEvent['Number of Days'].number);
-  const nextAction = await nextEvent.Tags.multi_select.map(tag => {
-    return tag.name
-  }).join(', ')
-  let action;
-  if (nextAction === 'Governance Cycle, Temperature Check'){
-    action = schedule.scheduleJob('Temperature Check', nextDate, () => {
-      temperatureCheckSetup(endDate);
-    })
-  } else if (nextAction === 'Governance Cycle, Voting Off-Chain'){
-    action = schedule.scheduleJob('Voting Off-Chain', nextDate, () => {
-      //votingOffChainSetup();
-    })
-  } else if (nextAction === 'Governance Cycle, Execution'){
-    action = schedule.scheduleJob('Execution', nextDate, () => {
-      //votingExecutionSetup();
-    })
-  }
-
   try {
+    const calendar = await checkNotionDb(config.governanceScheduleDb.id, config.governanceScheduleDb.filter, config.governanceScheduleDb.sorts)
+    const nextEvent = calendar.results[0].properties
+    const nextDate = new Date(nextEvent.Date.date.start)
+    const endDate = addDaysToDate(nextDate, nextEvent['Number of Days'].number);
+    const nextAction = await nextEvent.Tags.multi_select.map(tag => {
+      return tag.name
+    }).join(', ')
+    let action;
+    if (nextAction === 'Governance Cycle, Temperature Check'){
+      action = schedule.scheduleJob('Temperature Check', nextDate, () => {
+        temperatureCheckSetup(endDate);
+      })
+    } else if (nextAction === 'Governance Cycle, Voting Off-Chain'){
+      action = schedule.scheduleJob('Voting Off-Chain', nextDate, () => {
+        closeTemperatureCheck()
+        //votingOffChainSetup();
+      })
+    } else if (nextAction === 'Governance Cycle, Execution'){
+      action = schedule.scheduleJob('Execution', nextDate, () => {
+        //votingExecutionSetup();
+      })
+    }
     action.on('success', () => {
       queueNextGovernanceAction()
     })
+    log(`${config.name}: ${Object.keys(schedule.scheduledJobs)[0]} to run at ${nextDate}`);
   } catch(e) {
-    log('no action to queue, check notion calendar!', 'e')
+    log(`${config.name}: no action to queue, check notion calendar!`, 'e')
   }
-
-  log(`${config.name}: ${Object.keys(schedule.scheduledJobs)[0]} to run at ${nextDate}`);
 }
 
 async function updateProperty(pageId, property, updateData) {
@@ -137,7 +136,7 @@ async function temperatureCheckSetup(endDate) {
 }
 
 function pollPassCheck(yes, no) {
-  const ratio = no !== 0 ? yes/no : yes;
+  const ratio = yes/(yes+no)
   if (yes >= config.poll.minYesVotes && ratio >= config.poll.yesNoRatio) {
     return true;
   } else {
@@ -163,9 +162,18 @@ async function closeTemperatureCheck() {
     const yesVotes = yesVoteUsers.length;
     const noVotes = noVoteUsers.length;
 
+    const results = new MessageEmbed()
     if (pollPassCheck(yesVotes, noVotes)) {
-      discord.channels.cache.get(discordThreadId).send('yes');
+      updateProperty(d.id, 'Status', { select: { name: 'Voting' }});
+      results.setTitle(`Temperature Check ${config.poll.voteYesEmoji}`);
+    } else {
+      updateProperty(d.id, 'Status', { select: { name: 'Cancelled' }});
+      results.setTitle(`Temperature Check ${config.poll.voteNoEmoji}`);
     }
+
+    // send message with who voted
+    results.setDescription(`Results\n========\n${yesVotes} ${config.poll.voteYesEmoji}'s:\n${yesVoteUsers.join('\n')}\n\n${noVotes} ${config.poll.voteNoEmoji}'s:\n${noVoteUsers.join('\n')}`);
+    discord.channels.cache.get(discordThreadId).send({embeds: [results]});
   }
 }
 
@@ -196,7 +204,7 @@ async function handleDiscussions(){
     r.results.forEach((p) => {
       startThread(p).then((url)=> { 
         updateProperty(p.id, 'Discussion Thread', { url: url });
-        log(`New proposal to dicsuss: ${p.url}`);
+        log(`${config.name}: New proposal to dicsuss: ${p.url}`);
       });
     })
   });
@@ -210,7 +218,6 @@ process.on('SIGINT', function () {
 })
 
 //setInterval(handleDiscussions, 10*1000);
-queueNextGovernanceAction()
+//setInterval(queueNextGovernanceAction, 10*1000);
 //handleDiscussions()
-//temperatureCheckSetup()
 //getNextProposalIdIndex()
