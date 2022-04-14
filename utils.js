@@ -15,3 +15,11 @@ export function log(text, type='l') {
 export function addDaysToDate(date, days) {
   return new Date(date.getTime() + (days * 24 * 60 * 60 * 1000))
 }
+
+export function unixTimeStampNow() {
+  return Math.floor(Date.now() / 1000);
+}
+
+export function addDaysToTimeStamp(timestamp, days) {
+  return timestamp + (days * 24 * 60 * 60)
+}

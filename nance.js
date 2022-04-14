@@ -5,8 +5,9 @@ import fs from 'fs';
 import pinataSDK from '@pinata/sdk';
 import schedule from 'node-schedule';
 import * as notionGrab from './notionGrab.js';
+import { createProposal } from './snapshot.js';
 import { keys } from './keys.js';
-import { log, sleep, addDaysToDate } from './utils.js';
+import { log, sleep, addDaysToDate, unixTimeStampNow, addDaysToTimeStamp } from './utils.js';
 import { config } from './config.js';
 
 const notion = new notionClient({ auth: keys.NOTION_KEY });
@@ -219,7 +220,14 @@ export async function votingOffChainSetup(page) {
   updateProperty(page.id, 'IPFS', { url: ipfsUrl });
   log(`${config.name}: ${proposalId} - ${proposalTitle} pinned to ${ipfsUrl}`)
 
-  // 
+  const proposalStartTimeStamp = unixTimeStampNow();
+  const proposalEndTimeStamp = addDaysToTimeStamp(proposalStartTimeStamp, 4)
+  const snapshotId = await createProposal(
+    {title: proposalTitle, body: mdString},
+    proposalStartTimeStamp,
+    proposalEndTimeStamp
+  )
+  console.log(snapshotId);
 }
 
 async function startThread(proposal) {
