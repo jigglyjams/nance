@@ -31,7 +31,7 @@ export let config = {
   },
   "proposalDb": {
     "location": "notion",
-    "id": "40b2c74a527a4d06aae2c9656a12f98d",
+    "id": "e129323fd77e4e418ff90a64c5c37fc0",
     "preDiscussionFilter": {
       "and" : [
       {

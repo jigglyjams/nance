@@ -22,7 +22,6 @@ pinata.testAuthentication().then( r => {
 const discord = new discordClient({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES, Intents.FLAGS.GUILD_MESSAGE_REACTIONS] });
 discord.once('ready', async c => {
   log(`Ready! Logged in as ${c.user.tag}`);
-  //closeTemperatureCheck()
 });
 discord.login(keys.DISCORD_KEY);
 
@@ -188,6 +187,15 @@ export async function closeTemperatureCheck() {
   }
 }
 
+function cleanProposal(text) {
+  const textToRemove = '[_How to fill out this template_](/3d81e6bb330a4c869bddd0d6449ac032)_._\n'
+  if (text.indexOf(textToRemove) > -1) {
+    return text.replace(textToRemove, '');
+  } else {
+    return `\n ${text}`;
+  }
+}
+
 export async function votingOffChainSetup(page) {
   // convert notion blocks to markdown string
   const mdBlocks = await notionToMd.pageToMarkdown(page.id);
@@ -196,7 +204,8 @@ export async function votingOffChainSetup(page) {
   // append proposal id to text
   const proposalTitle = notionGrab.title(page)
   const proposalId = notionGrab.richText(page, config.proposalIdProperty);
-  mdString = `# ${proposalId} - ${proposalTitle}\n${mdString}`
+  mdString = cleanProposal(mdString);
+  mdString = `# ${proposalId} - ${proposalTitle}${mdString}`
 
   // write to tmp folder then pin then delete file
   fs.writeFileSync(`./tmp/${page.id}.md`, mdString);
@@ -205,7 +214,12 @@ export async function votingOffChainSetup(page) {
     return(r.IpfsHash);
   })
   const ipfsUrl = `${config.IpfsGateway}/${cid}`
+
+  // update notion db
+  updateProperty(page.id, 'IPFS', { url: ipfsUrl });
   log(`${config.name}: ${proposalId} - ${proposalTitle} pinned to ${ipfsUrl}`)
+
+  // 
 }
 
 async function startThread(proposal) {
