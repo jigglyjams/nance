@@ -9,6 +9,10 @@ export let config = {
     "minYesVotes": 1,
     "yesNoRatio": 0.3
   },
+  "snapshot": {
+    "base": "https://snapshot.org/#",
+    "space": "jigglyjams.eth"
+  },
   "proposalIdPrefix": "JBP-",
   "IpfsGateway": "https://gateway.pinata.cloud/ipfs",
   "proposalIdProperty": "Juicebox Proposal ID",

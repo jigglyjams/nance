@@ -197,13 +197,17 @@ function cleanProposal(text) {
   }
 }
 
+function addLinksToProposalMd(text, links) {
+  return `${text}\n\n---\n[Discussion Thread](${links.discussion}) | [Temperature Check](${links.temperatureCheck}) | [IPFS](${links.ipfs})`
+}
+
 export async function votingOffChainSetup(page) {
   // convert notion blocks to markdown string
   const mdBlocks = await notionToMd.pageToMarkdown(page.id);
   let mdString = notionToMd.toMarkdownString(mdBlocks);
   
-  // append proposal id to text
-  const proposalTitle = notionGrab.title(page)
+  // append proposal id to beginning of text
+  const proposalTitle = notionGrab.title(page);
   const proposalId = notionGrab.richText(page, config.proposalIdProperty);
   mdString = cleanProposal(mdString);
   mdString = `# ${proposalId} - ${proposalTitle}${mdString}`
@@ -216,18 +220,37 @@ export async function votingOffChainSetup(page) {
   })
   const ipfsUrl = `${config.IpfsGateway}/${cid}`
 
-  // update notion db
-  updateProperty(page.id, 'IPFS', { url: ipfsUrl });
-  log(`${config.name}: ${proposalId} - ${proposalTitle} pinned to ${ipfsUrl}`)
+  // append links at bottom of text
+  const relevantLinks = {
+    discussion: page.properties['Discussion Thread'].url,
+    temperatureCheck: page.properties['Temperature Check'].url,
+    ipfs: ipfsUrl,
+  }
+  mdString = addLinksToProposalMd(mdString, relevantLinks);
 
   const proposalStartTimeStamp = unixTimeStampNow();
   const proposalEndTimeStamp = addDaysToTimeStamp(proposalStartTimeStamp, 4)
-  const snapshotId = await createProposal(
+  const snapshotVoteId = await createProposal(
+    config.snapshot.space,
     {title: proposalTitle, body: mdString},
     proposalStartTimeStamp,
     proposalEndTimeStamp
-  )
-  console.log(snapshotId);
+  );
+  const snapShotUrl = `${config.snapshot.base}/${config.snapshot.space}/proposal/${snapshotVoteId}`;
+
+  // update notion db with ipfs and snapshot links
+  await notion.pages.update({
+    page_id: page.id,
+    properties: {
+      'IPFS': {
+        url : ipfsUrl
+      },
+      'Snapshot': {
+        url: snapShotUrl
+      }
+    }
+  });
+  log(`${config.name}: ${proposalId} - ${proposalTitle} vote live at ${snapShotUrl}`);
 }
 
 async function startThread(proposal) {
