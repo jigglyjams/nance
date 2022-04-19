@@ -1,7 +1,7 @@
 export let config = {
   "name": "juiceboxDAO",
   "guildId": "889377541675159602",
-  "channelId": "889377541675159605",
+  "channelId": "964601032703352873",
   "alertRole": "958529682796605440",
   "poll": {
     "voteYesEmoji": '👍',
@@ -14,7 +14,7 @@ export let config = {
     "space": "jigglyjams.eth"
   },
   "proposalIdPrefix": "JBP-",
-  "IpfsGateway": "https://gateway.pinata.cloud/ipfs",
+  "ipfsGateway": "https://gateway.pinata.cloud/ipfs",
   "proposalIdProperty": "Juicebox Proposal ID",
   "governanceScheduleDb": {
     "location": "notion",

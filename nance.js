@@ -97,31 +97,28 @@ export async function temperatureCheckSetup(endDate) {
   const discussions = await checkNotionDb(config.proposalDb.id, config.proposalDb.discussionFilter)
   for (let i=0; i< discussions.results.length; i++) {
     const d = discussions.results[i];
-    const nextProposalId = currentProposalId + 1 + i
-    updateProperty(d.id, 'Status', { select: { name: 'Temperature Check' }})
-    const discordThreadUrl = d.properties['Discussion Thread'].url.split('/')
-    const discordThreadId = discordThreadUrl[discordThreadUrl.length - 1]
+    const nextProposalId = currentProposalId + 1 + i;
+    const discordThreadUrl = d.properties['Discussion Thread'].url.split('/');
+    const discordThreadId = discordThreadUrl[discordThreadUrl.length - 1];
     const proposalTitle = notionGrab.title(d);
-    const message = new MessageEmbed()
-      .setTitle('Temperature Check Poll')
-      .addField('Proposal', `[${proposalTitle}](${d.url})`)
-    const discordChannel = discord.channels.cache.get(discordThreadId);
-    const temperatureCheckPollId = await discordChannel.send({ embeds: [message] }).then(m => {
-      m.react(config.poll.voteYesEmoji).then(()=>{
-        m.react(config.poll.voteNoEmoji)
-      })
-      return m.id
-    })
+    const discordChannel = discord.channels.cache.get(config.channelId);
+    const originalMessage = await discordChannel.messages.fetch(discordThreadId);
+    originalMessage.edit(`${originalMessage.content}\n\n Temperature Check poll is now open! Vote by reacting to this message.`);
+    await Promise.all([
+      originalMessage.react(config.poll.voteYesEmoji),
+      originalMessage.react(config.poll.voteNoEmoji)
+    ]);
 
-    const temperatureCheckUrl = `https://discord.com/channels/${config.guildId}/${discordThreadId}/${temperatureCheckPollId}`
+    const temperatureCheckPollId = 1;
+    const temperatureCheckUrl = `https://discord.com/channels/${config.guildId}/${discordThreadId}`
     temperatureCheckRollupMessage += `${i+1}. ${proposalTitle}: ${temperatureCheckUrl}\n\n`
 
     // have to update both properties at once or there are conflicts
     await notion.pages.update({
       page_id: d.id,
       properties: {
-        'Temperature Check': {
-          url : temperatureCheckUrl
+        'Status': {
+          select : { name: 'Temperature Check' }
         },
         [config.proposalIdProperty]: {
           rich_text: [
@@ -136,13 +133,12 @@ export async function temperatureCheckSetup(endDate) {
   }
 
   // edit and send roll up temperature check discord message
-  temperatureCheckRollupMessage += `<@&${config.alertRole}>`
+  temperatureCheckRollupMessage += `<@&${config.alertRole}>`;
   const rollup = new MessageEmbed()
     .setTitle('Temperature Checks')
-    .setDescription(temperatureCheckRollupMessage)
+    .setDescription(temperatureCheckRollupMessage);
   discord.channels.cache.get(config.channelId).send({embeds: [rollup]});
-  log(`${config.name} temperature check complete.`)
-  
+  log(`${config.name} temperature check complete.`);
 }
 
 function pollPassCheck(yes, no) {
@@ -161,11 +157,10 @@ export async function closeTemperatureCheck() {
   const temperatureCheckProposals = await checkNotionDb(config.proposalDb.id, config.proposalDb.temperatureCheckFilter)
   for (let i=0; i < temperatureCheckProposals.results.length; i++) {
     const d = temperatureCheckProposals.results[i]
-    const temperatureCheckUrl = d.properties['Temperature Check'].url.split('/')
-    const discordThreadId = temperatureCheckUrl[temperatureCheckUrl.length - 2]
-    const temperatureCheckPollId = temperatureCheckUrl[temperatureCheckUrl.length - 1]
-    const pollMessage = await discord.channels.cache.get(discordThreadId).messages.fetch(temperatureCheckPollId)
-    const pollReactionsCollection = await pollMessage.reactions.cache
+    const discordThreadUrl = d.properties['Discussion Thread'].url.split('/')
+    const discordThreadId = discordThreadUrl[discordThreadUrl.length - 1]
+    const pollMessage = await discord.channels.cache.get(config.channelId).messages.fetch(discordThreadId);
+    const pollReactionsCollection = await pollMessage.reactions.cache;
     const yesVoteUsers = await pollReactionsCollection.get(config.poll.voteYesEmoji).users.fetch().then(results => results.filter(user => !user.bot).map(user => user.tag))
     const noVoteUsers = await pollReactionsCollection.get(config.poll.voteNoEmoji).users.fetch().then(results => results.filter(user => !user.bot).map(user => user.tag))
 
@@ -218,7 +213,7 @@ export async function votingOffChainSetup(page) {
     fs.rmSync(`./tmp/${page.id}.md`);
     return(r.IpfsHash);
   })
-  const ipfsUrl = `${config.IpfsGateway}/${cid}`
+  const ipfsUrl = `${config.ipfsGateway}/${cid}`
 
   // append links at bottom of text
   const relevantLinks = {
