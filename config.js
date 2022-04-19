@@ -4,8 +4,10 @@ export let config = {
   "channelId": "964601032703352873",
   "alertRole": "958529682796605440",
   "poll": {
-    "voteYesEmoji": '👍',
-    "voteNoEmoji": '👎',
+    "voteYesEmoji": "👍",
+    "voteNoEmoji": "👎",
+    "voteGoVoteEmoji": "🗳",
+    "voteCanceledEmoji": "❌", 
     "minYesVotes": 1,
     "yesNoRatio": 0.3
   },
@@ -35,7 +37,7 @@ export let config = {
   },
   "proposalDb": {
     "location": "notion",
-    "id": "e129323fd77e4e418ff90a64c5c37fc0",
+    "id": "0826992a8a214b33ac7107ea285c7802",
     "preDiscussionFilter": {
       "and" : [
       {
@@ -73,19 +75,10 @@ export let config = {
       }
     },
     "temperatureCheckFilter": {
-      "and" : [
-      {
-        "property": "Status",
-        "select": {
-          "equals":"Temperature Check"
-        }
-      },
-      {
-        "property": "Temperature Check",
-        "url": {
-          "is_not_empty": true
-        }
-      }]
+      "property": "Status",
+      "select": {
+        "equals":"Temperature Check"
+      }
     },
     "proposalIdFilter": {
       "property": null,

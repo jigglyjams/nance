@@ -34,8 +34,7 @@ async function checkNotionDb(dbId, dbFilter, dbSort=[]) {
       sorts: dbSort
     })
   } catch(e) {
-    log('issue querying notion db');
-    log(e);
+    log(`${config.name}: issue querying notion db`, 'e');
   }
 }
 
@@ -137,7 +136,7 @@ export async function temperatureCheckSetup(endDate) {
     .setTitle('Temperature Checks')
     .setDescription(temperatureCheckRollupMessage);
   discord.channels.cache.get(config.channelId).send({embeds: [rollup]});
-  log(`${config.name} temperature check complete.`);
+  log(`${config.name}: temperature check complete.`, 'g');
 }
 
 function pollPassCheck(yes, no) {
@@ -166,19 +165,23 @@ export async function closeTemperatureCheck() {
     const yesVotes = yesVoteUsers.length;
     const noVotes = noVoteUsers.length;
 
-    const results = new MessageEmbed()
+    const resultsMessage = new MessageEmbed()
     if (pollPassCheck(yesVotes, noVotes)) {
       updateProperty(d.id, 'Status', { select: { name: 'Voting' }});
-      results.setTitle(`Temperature Check ${config.poll.voteYesEmoji}`);
-      votingOffChainSetup(d);
+      resultsMessage.setTitle(`Temperature Check ${config.poll.voteYesEmoji}`);
+      const snapShotUrl = await votingOffChainSetup(d);
+      resultsMessage.addField('Proposal Status', `[Vote here!](${snapShotUrl}) ${config.poll.voteGoVoteEmoji}`);
+      pollMessage.react(config.poll.voteGoVoteEmoji);
     } else {
       updateProperty(d.id, 'Status', { select: { name: 'Cancelled' }});
-      results.setTitle(`Temperature Check ${config.poll.voteNoEmoji}`);
+      pollMessage.react(config.poll.voteCanceledEmoji);
+      resultsMessage.setTitle(`Temperature Check ${config.poll.voteNoEmoji}`);
+      resultsMessage.addField('Proposal Status', `canceled ${config.poll.voteCanceledEmoji}`);
     }
 
     // send message with who voted
-    results.setDescription(`Results\n========\n${yesVotes} ${config.poll.voteYesEmoji}'s:\n${yesVoteUsers.join('\n')}\n\n${noVotes} ${config.poll.voteNoEmoji}'s:\n${noVoteUsers.join('\n')}`);
-    discord.channels.cache.get(discordThreadId).send({embeds: [results]});
+    resultsMessage.setDescription(`Results\n========\n${yesVotes} ${config.poll.voteYesEmoji}'s:\n${yesVoteUsers.join('\n')}\n\n${noVotes} ${config.poll.voteNoEmoji}'s:\n${noVoteUsers.join('\n')}\n`);
+    discord.channels.cache.get(discordThreadId).send({embeds: [resultsMessage]});
   }
 }
 
@@ -245,6 +248,7 @@ export async function votingOffChainSetup(page) {
     }
   });
   log(`${config.name}: ${proposalId} - ${proposalTitle} vote live at ${snapShotUrl}`);
+  return snapShotUrl;
 }
 
 async function startThread(proposal) {
@@ -255,11 +259,13 @@ async function startThread(proposal) {
 
   // some proposals have multiple categories, map them into a single string separated by ' & '
   const proposalType = notionGrab.categoryText(proposal)
-  
-  const message = await discordChannel.send(`New **${proposalType}** proposal: ${proposalUrl}`);
+
+  // if no category dont add it message text
+  const text = (proposalType) ? `New **${proposalType}** proposal: ${proposalUrl}` : `New proposal: ${proposalUrl}`;
+  const message = await discordChannel.send(text);
   return message.startThread({
     name: proposalTitle,
-    autoArchiveDuration: 60*24
+    autoArchiveDuration: 60*24*7
   }).then(thread => {
     return `https://discord.com/channels/${config.guildId}/${config.channelId}/${thread.id}`;
   });
@@ -273,6 +279,8 @@ export async function handleDiscussions(){
         log(`${config.name}: New proposal to dicsuss: ${p.url}`);
       });
     })
+  }).catch(() => {
+    log(`${config.name}: handleDiscussions() failed!`, 'e');
   });
 }
 
