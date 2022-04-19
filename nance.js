@@ -109,7 +109,6 @@ export async function temperatureCheckSetup(endDate) {
       originalMessage.react(config.poll.voteNoEmoji)
     ]);
 
-    const temperatureCheckPollId = 1;
     const temperatureCheckUrl = `https://discord.com/channels/${config.guildId}/${discordThreadId}`
     temperatureCheckRollupMessage += `${i+1}. ${proposalTitle}: ${temperatureCheckUrl}\n\n`
 
