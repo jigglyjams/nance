@@ -18,7 +18,7 @@ export async function createProposal(space, proposal, startTimeStamp, endTimeSta
     title: proposal.title,
     body: proposal.body,
     discussion: proposal.discussion,
-    choices: ['Yes', 'No', 'Abstain'],
+    choices: ['For', 'Against', 'Abstain'],
     start: startTimeStamp,
     end: endTimeStamp,
     snapshot: latestBlock,

@@ -166,8 +166,21 @@ export async function closeTemperatureCheck() {
     const noVotes = noVoteUsers.length;
 
     const resultsMessage = new MessageEmbed()
+    
+    // send message with who voted
+    resultsMessage.setDescription(`Results\n========\n${yesVotes} ${config.poll.voteYesEmoji}'s:\n${yesVoteUsers.join('\n')}\n\n${noVotes} ${config.poll.voteNoEmoji}'s:\n${noVoteUsers.join('\n')}\n`);
+    const resultsMessageObj = await discord.channels.cache.get(discordThreadId).send({embeds: [resultsMessage]});
+
     if (pollPassCheck(yesVotes, noVotes)) {
-      updateProperty(d.id, 'Status', { select: { name: 'Voting' }});
+      await notion.pages.update({
+        page_id: d.id,
+        properties: {
+          'Status' : {
+            select: { name: 'Voting' }
+          },
+          'Temperature Check': { url: `https://discord.com/channels/${config.guildId}/${discordThreadId}/${resultsMessageObj.id}`}
+        }
+      });
       resultsMessage.setTitle(`Temperature Check ${config.poll.voteYesEmoji}`);
       const snapShotUrl = await votingOffChainSetup(d);
       resultsMessage.addField('Proposal Status', `[Vote here!](${snapShotUrl}) ${config.poll.voteGoVoteEmoji}`);
@@ -179,9 +192,8 @@ export async function closeTemperatureCheck() {
       resultsMessage.addField('Proposal Status', `canceled ${config.poll.voteCanceledEmoji}`);
     }
 
-    // send message with who voted
-    resultsMessage.setDescription(`Results\n========\n${yesVotes} ${config.poll.voteYesEmoji}'s:\n${yesVoteUsers.join('\n')}\n\n${noVotes} ${config.poll.voteNoEmoji}'s:\n${noVoteUsers.join('\n')}\n`);
-    discord.channels.cache.get(discordThreadId).send({embeds: [resultsMessage]});
+    // update results message with links and correct results emoji
+    resultsMessageObj.edit({ embeds: [resultsMessage] })
   }
 }
 
