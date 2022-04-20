@@ -102,7 +102,7 @@ export async function temperatureCheckSetup(endDate) {
     const proposalTitle = notionGrab.title(d);
     const discordChannel = discord.channels.cache.get(config.channelId);
     const originalMessage = await discordChannel.messages.fetch(discordThreadId);
-    originalMessage.edit(`${originalMessage.content}\n\n Temperature Check poll is now open! Vote by reacting to this message.`);
+    originalMessage.edit(`${originalMessage.content}\n\n Temperature Check poll is now open! **Vote by reacting to this message.**`);
     await Promise.all([
       originalMessage.react(config.poll.voteYesEmoji),
       originalMessage.react(config.poll.voteNoEmoji)
@@ -171,26 +171,29 @@ export async function closeTemperatureCheck() {
     resultsMessage.setDescription(`Results\n========\n${yesVotes} ${config.poll.voteYesEmoji}'s:\n${yesVoteUsers.join('\n')}\n\n${noVotes} ${config.poll.voteNoEmoji}'s:\n${noVoteUsers.join('\n')}\n`);
     const resultsMessageObj = await discord.channels.cache.get(discordThreadId).send({embeds: [resultsMessage]});
 
+    let statusChange;
     if (pollPassCheck(yesVotes, noVotes)) {
-      await notion.pages.update({
-        page_id: d.id,
-        properties: {
-          'Status' : {
-            select: { name: 'Voting' }
-          },
-          'Temperature Check': { url: `https://discord.com/channels/${config.guildId}/${discordThreadId}/${resultsMessageObj.id}`}
-        }
-      });
+      statusChange = 'Voting'
       resultsMessage.setTitle(`Temperature Check ${config.poll.voteYesEmoji}`);
       const snapShotUrl = await votingOffChainSetup(d);
       resultsMessage.addField('Proposal Status', `[Vote here!](${snapShotUrl}) ${config.poll.voteGoVoteEmoji}`);
       pollMessage.react(config.poll.voteGoVoteEmoji);
     } else {
-      updateProperty(d.id, 'Status', { select: { name: 'Cancelled' }});
+      statusChange = 'Cancelled'
       pollMessage.react(config.poll.voteCanceledEmoji);
       resultsMessage.setTitle(`Temperature Check ${config.poll.voteNoEmoji}`);
       resultsMessage.addField('Proposal Status', `canceled ${config.poll.voteCanceledEmoji}`);
     }
+    
+    notion.pages.update({
+      page_id: d.id,
+      properties: {
+        'Status' : {
+          select: { name: `${statusChange}` }
+        },
+        'Temperature Check': { url: `https://discord.com/channels/${config.guildId}/${discordThreadId}/${resultsMessageObj.id}`}
+      }
+    });
 
     // update results message with links and correct results emoji
     resultsMessageObj.edit({ embeds: [resultsMessage] })
@@ -207,7 +210,7 @@ function cleanProposal(text) {
 }
 
 function addLinksToProposalMd(text, links) {
-  return `${text}\n\n---\n[Discussion Thread](${links.discussion}) | [Temperature Check](${links.temperatureCheck}) | [IPFS](${links.ipfs})`
+  return `${text}\n\n---\n[Discussion Thread](${links.discussion}) | [IPFS](${links.ipfs})`
 }
 
 export async function votingOffChainSetup(page) {
@@ -232,7 +235,6 @@ export async function votingOffChainSetup(page) {
   // append links at bottom of text
   const relevantLinks = {
     discussion: page.properties['Discussion Thread'].url,
-    temperatureCheck: page.properties['Temperature Check'].url,
     ipfs: ipfsUrl,
   }
   mdString = addLinksToProposalMd(mdString, relevantLinks);
