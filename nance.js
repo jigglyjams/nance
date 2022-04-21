@@ -175,8 +175,9 @@ export async function closeTemperatureCheck() {
     if (pollPassCheck(yesVotes, noVotes)) {
       statusChange = 'Voting'
       resultsMessage.setTitle(`Temperature Check ${config.poll.voteYesEmoji}`);
-      const snapShotUrl = await votingOffChainSetup(d);
+      const [snapShotUrl, proposalEndTimeStamp] = await votingOffChainSetup(d);
       resultsMessage.addField('Proposal Status', `[Vote here!](${snapShotUrl}) ${config.poll.voteGoVoteEmoji}`);
+      resultsMessage.addField('Voting ends', `<t:${proposalEndTimeStamp}>`)
       pollMessage.react(config.poll.voteGoVoteEmoji);
     } else {
       statusChange = 'Cancelled'
@@ -262,7 +263,7 @@ export async function votingOffChainSetup(page) {
     }
   });
   log(`${config.name}: ${proposalId} - ${proposalTitle} vote live at ${snapShotUrl}`);
-  return snapShotUrl;
+  return [snapShotUrl, proposalEndTimeStamp];
 }
 
 async function startThread(proposal) {
