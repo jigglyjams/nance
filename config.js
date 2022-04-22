@@ -13,7 +13,10 @@ export let config = {
   },
   "snapshot": {
     "base": "https://snapshot.org/#",
-    "space": "jigglyjams.eth"
+    "space": "jigglyjams.eth",
+    "choices": ['For', 'Against', 'Abstain'],
+    "quroum": 1,
+    "passingRatio": 0.66
   },
   "proposalIdPrefix": "JBP-",
   "ipfsGateway": "https://gateway.pinata.cloud/ipfs",
@@ -37,7 +40,7 @@ export let config = {
   },
   "proposalDb": {
     "location": "notion",
-    "id": "0826992a8a214b33ac7107ea285c7802",
+    "id": "50e11ebe3d2440b7a64d39805868df87",
     "preDiscussionFilter": {
       "and" : [
       {
@@ -85,6 +88,21 @@ export let config = {
       "rich_text": {
         "contains": "JBP-"
       }
+    },
+    "votingFilter": {
+      "and" : [
+      {
+        "property": "Status",
+        "select": {
+          "equals": "Voting"
+        }
+      },
+      {
+        "property": "Snapshot",
+        "url": {
+          "is_not_empty": true
+        }
+      }]
     }
   }
 }

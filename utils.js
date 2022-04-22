@@ -23,3 +23,8 @@ export function unixTimeStampNow() {
 export function addDaysToTimeStamp(timestamp, days) {
   return timestamp + (days * 24 * 60 * 60)
 }
+
+export function getLastSlash(url) {
+  const split = url.split('/');
+  return split[split.length - 1];
+}

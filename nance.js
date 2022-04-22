@@ -5,9 +5,9 @@ import fs from 'fs';
 import pinataSDK from '@pinata/sdk';
 import schedule from 'node-schedule';
 import * as notionGrab from './notionGrab.js';
-import { createProposal } from './snapshot.js';
+import { createProposal, getProposalVotes } from './snapshot.js';
 import { keys } from './keys.js';
-import { log, sleep, addDaysToDate, unixTimeStampNow, addDaysToTimeStamp } from './utils.js';
+import { log, addDaysToDate, unixTimeStampNow, addDaysToTimeStamp, getLastSlash } from './utils.js';
 import { config } from './config.js';
 
 const notion = new notionClient({ auth: keys.NOTION_KEY });
@@ -220,13 +220,13 @@ export async function votingOffChainSetup(page) {
   let mdString = notionToMd.toMarkdownString(mdBlocks);
   
   // append proposal id to beginning of text
-  const proposalTitle = notionGrab.title(page);
   const proposalId = notionGrab.richText(page, config.proposalIdProperty);
+  const proposalTitle = `${proposalId} - ${notionGrab.title(page)}`;
   mdString = cleanProposal(mdString);
-  mdString = `# ${proposalId} - ${proposalTitle}${mdString}`
+  const mdStringIpfs = `# ${proposalTitle}${mdString}`
 
   // write to tmp folder then pin then delete file
-  fs.writeFileSync(`./tmp/${page.id}.md`, mdString);
+  fs.writeFileSync(`./tmp/${page.id}.md`, mdStringIpfs);
   const cid = await pinata.pinFromFS(`./tmp/${page.id}.md`).then(r => {
     fs.rmSync(`./tmp/${page.id}.md`);
     return(r.IpfsHash);
@@ -241,10 +241,12 @@ export async function votingOffChainSetup(page) {
   mdString = addLinksToProposalMd(mdString, relevantLinks);
 
   const proposalStartTimeStamp = unixTimeStampNow();
-  const proposalEndTimeStamp = addDaysToTimeStamp(proposalStartTimeStamp, 4)
+  //const proposalEndTimeStamp = addDaysToTimeStamp(proposalStartTimeStamp, 4)
+  const proposalEndTimeStamp = proposalStartTimeStamp+60;
   const snapshotVoteId = await createProposal(
     config.snapshot.space,
     {title: proposalTitle, body: mdString},
+    config.snapshot.choices,
     proposalStartTimeStamp,
     proposalEndTimeStamp
   );
@@ -264,6 +266,36 @@ export async function votingOffChainSetup(page) {
   });
   log(`${config.name}: ${proposalId} - ${proposalTitle} vote live at ${snapShotUrl}`);
   return [snapShotUrl, proposalEndTimeStamp];
+}
+
+export function offChainVotePassCheck(voteResults) {
+  const yes = voteResults.votes[config.snapshot.choices[0]];
+  const no = voteResults.votes[config.snapshot.choices[1]];
+  const ratio = yes/(yes+no);
+  if (voteResults.totalVotes >= config.snapshot.quroum && ratio >= config.snapshot.passingRatio) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+export async function closeVotingOffChain(){
+  const votingProposals = await checkNotionDb(config.proposalDb.id, config.proposalDb.votingFilter);
+  for (let i=0; i < votingProposals.results.length; i++) {
+    const d = votingProposals.results[i];
+    const offChainVotingId = getLastSlash(d.properties['Snapshot'].url);
+    const offChainVotingResults = await getProposalVotes(offChainVotingId);
+
+    // check if votes are final
+    if (offChainVotingResults.status !== 'final') {
+      log(`${config.name}: voting results not final! Re-run closeVotingOffChain()`, 'e');
+      return -1;
+    }
+
+    const statusUpdate = offChainVotePassCheck(offChainVotingResults) ? 'Approved' : 'Cancelled';
+    updateProperty(d.id, 'Status', { 'select': { name: statusUpdate }});
+  }
+  log(`${config.name}: closeVotingOffChain complete.`, 'g');
 }
 
 async function startThread(proposal) {
