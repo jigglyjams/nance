@@ -102,7 +102,12 @@ export async function temperatureCheckSetup(endDate) {
     const proposalTitle = notionGrab.title(d);
     const discordChannel = discord.channels.cache.get(config.channelId);
     const originalMessage = await discordChannel.messages.fetch(discordThreadId);
-    originalMessage.edit(`${originalMessage.content}\n\n Temperature Check poll is now open! **Vote by reacting to this message.**`);
+
+    // if the bot sent the message then edit it with instructions
+    // this is neccessary in case someone else created the thread
+    if (originalMessage.author.id === discord.user.id) {
+      originalMessage.edit(`${originalMessage.content}\n\n Temperature Check poll is now open! **Vote by reacting to this message.**`);
+    }
     await Promise.all([
       originalMessage.react(config.poll.voteYesEmoji),
       originalMessage.react(config.poll.voteNoEmoji)
