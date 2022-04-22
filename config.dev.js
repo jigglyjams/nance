@@ -1,21 +1,21 @@
 export let config = {
   "name": "juiceboxDAO",
-  "guildId": "775859454780244028",
-  "channelId": "873248745771372584",
-  "alertRole": "963253899312136282",
+  "guildId": "889377541675159602",
+  "channelId": "964601032703352873",
+  "alertRole": "958529682796605440",
   "poll": {
     "voteYesEmoji": "👍",
     "voteNoEmoji": "👎",
     "voteGoVoteEmoji": "🗳",
     "voteCanceledEmoji": "❌", 
-    "minYesVotes": 10,
+    "minYesVotes": 1,
     "yesNoRatio": 0.3
   },
   "snapshot": {
     "base": "https://snapshot.org/#",
-    "space": "jbdao.eth",
+    "space": "jigglyjams.eth",
     "choices": ['For', 'Against', 'Abstain'],
-    "quroum": 15,
+    "quroum": 1,
     "passingRatio": 0.66
   },
   "proposalIdPrefix": "JBP-",
@@ -40,7 +40,7 @@ export let config = {
   },
   "proposalDb": {
     "location": "notion",
-    "id": "9d126f9148dc42ee83317d5cd74e4db4",
+    "id": "50e11ebe3d2440b7a64d39805868df87",
     "preDiscussionFilter": {
       "and" : [
       {
