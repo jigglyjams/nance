@@ -6,9 +6,12 @@ import pinataSDK from '@pinata/sdk';
 import schedule from 'node-schedule';
 import * as notionGrab from './notionGrab.js';
 import { createProposal, getProposalVotes } from './snapshot.js';
-import { keys } from './keys.js';
-import { log, addDaysToDate, unixTimeStampNow, addDaysToTimeStamp, getLastSlash } from './utils.js';
-import { config } from './config.js';
+import { keys, configName } from './keys.js';
+import { log, sleep, addDaysToDate, unixTimeStampNow, addDaysToTimeStamp, getLastSlash } from './utils.js';
+
+
+const config = (await import(`./${configName}`)).config
+console.log(`snapshot space ${config.snapshot.space} loaded!`)
 
 const notion = new notionClient({ auth: keys.NOTION_KEY });
 const notionToMd = new NotionToMarkdown({ notionClient: notion });
@@ -247,7 +250,7 @@ export async function votingOffChainSetup(page) {
 
   const proposalStartTimeStamp = unixTimeStampNow();
   //const proposalEndTimeStamp = addDaysToTimeStamp(proposalStartTimeStamp, 4)
-  const proposalEndTimeStamp = proposalStartTimeStamp+60;
+  const proposalEndTimeStamp = proposalStartTimeStamp+120;
   const snapshotVoteId = await createProposal(
     config.snapshot.space,
     {title: proposalTitle, body: mdString},
@@ -292,9 +295,10 @@ export async function closeVotingOffChain(){
     const offChainVotingResults = await getProposalVotes(offChainVotingId);
 
     // check if votes are final
-    if (offChainVotingResults.status !== 'final') {
+    console.log(offChainVotingResults);
+    if (offChainVotingResults.scoresState !== 'final') {
       log(`${config.name}: voting results not final! Re-run closeVotingOffChain()`, 'e');
-      return -1;
+      //return -1;
     }
 
     const statusUpdate = offChainVotePassCheck(offChainVotingResults) ? 'Approved' : 'Cancelled';

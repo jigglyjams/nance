@@ -12,3 +12,5 @@ export const keys = {
   },
   SNAPSHOT_KEY: process.env.SNAPSHOT_KEY
 };
+
+export const configName = process.env.CONFIG;

@@ -2,7 +2,7 @@ export let config = {
   "name": "juiceboxDAO",
   "guildId": "775859454780244028",
   "channelId": "873248745771372584",
-  "alertRole": "963253899312136282",
+  "alertRole": "953865172764729404",
   "poll": {
     "voteYesEmoji": "👍",
     "voteNoEmoji": "👎",
