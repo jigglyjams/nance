@@ -298,7 +298,6 @@ export async function closeVotingOffChain(){
     console.log(offChainVotingResults);
     if (offChainVotingResults.scoresState !== 'final') {
       log(`${config.name}: voting results not final! Re-run closeVotingOffChain()`, 'e');
-      //return -1;
     }
 
     const statusUpdate = offChainVotePassCheck(offChainVotingResults) ? 'Approved' : 'Cancelled';

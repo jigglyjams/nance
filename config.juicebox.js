@@ -83,12 +83,6 @@ export let config = {
         "equals":"Temperature Check"
       }
     },
-    "proposalIdFilter": {
-      "property": null,
-      "rich_text": {
-        "contains": "JBP-"
-      }
-    },
     "votingFilter": {
       "and" : [
       {
