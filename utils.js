@@ -21,7 +21,11 @@ export function unixTimeStampNow() {
 }
 
 export function addDaysToTimeStamp(timestamp, days) {
-  return timestamp + (days * 24 * 60 * 60)
+  return timestamp + Math.floor(days * 24 * 60 * 60)
+}
+
+export const minutesToDays = (minutes) => {
+  return minutes / 24 / 60;
 }
 
 export function getLastSlash(url) {

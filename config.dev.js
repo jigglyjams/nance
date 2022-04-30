@@ -1,3 +1,5 @@
+import { minutesToDays } from "./utils.js"
+
 export let config = {
   "name": "juiceboxDAO",
   "guildId": "889377541675159602",
@@ -15,6 +17,7 @@ export let config = {
     "base": "https://snapshot.org/#",
     "space": "jigglyjams.eth",
     "choices": ['For', 'Against', 'Abstain'],
+    "votingTimeDays": minutesToDays(10),
     "quroum": 1,
     "passingRatio": 0.66
   },
@@ -81,12 +84,6 @@ export let config = {
       "property": "Status",
       "select": {
         "equals":"Temperature Check"
-      }
-    },
-    "proposalIdFilter": {
-      "property": null,
-      "rich_text": {
-        "contains": "JBP-"
       }
     },
     "votingFilter": {

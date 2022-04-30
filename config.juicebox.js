@@ -15,6 +15,7 @@ export let config = {
     "base": "https://snapshot.org/#",
     "space": "jbdao.eth",
     "choices": ['For', 'Against', 'Abstain'],
+    "votingTimeDays": 4,
     "quroum": 15,
     "passingRatio": 0.66
   },

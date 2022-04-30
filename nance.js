@@ -58,7 +58,6 @@ async function queueNextGovernanceAction(){
     } else if (nextAction === 'Governance Cycle, Voting Off-Chain'){
       action = schedule.scheduleJob('Voting Off-Chain', nextDate, () => {
         closeTemperatureCheck()
-        //votingOffChainSetup();
       })
     } else if (nextAction === 'Governance Cycle, Execution'){
       action = schedule.scheduleJob('Execution', nextDate, () => {
@@ -183,7 +182,7 @@ export async function closeTemperatureCheck() {
     if (pollPassCheck(yesVotes, noVotes)) {
       statusChange = 'Voting'
       resultsMessage.setTitle(`Temperature Check ${config.poll.voteYesEmoji}`);
-      const [snapShotUrl, proposalEndTimeStamp] = await votingOffChainSetup(d);
+      const [snapShotUrl, proposalEndTimeStamp] = await votingOffChainSetup(d, config.snapshot.votingTimeDays);
       resultsMessage.addField('Proposal Status', `[Vote here!](${snapShotUrl}) ${config.poll.voteGoVoteEmoji}`);
       resultsMessage.addField('Voting ends', `<t:${proposalEndTimeStamp}>`)
       pollMessage.react(config.poll.voteGoVoteEmoji);
@@ -222,7 +221,7 @@ function addLinksToProposalMd(text, links) {
   return `${text}\n\n---\n[Discussion Thread](${links.discussion}) | [IPFS](${links.ipfs})`
 }
 
-export async function votingOffChainSetup(page) {
+export async function votingOffChainSetup(page, votingTimeDays) {
   // convert notion blocks to markdown string
   const mdBlocks = await notionToMd.pageToMarkdown(page.id);
   let mdString = notionToMd.toMarkdownString(mdBlocks);
@@ -249,8 +248,7 @@ export async function votingOffChainSetup(page) {
   mdString = addLinksToProposalMd(mdString, relevantLinks);
 
   const proposalStartTimeStamp = unixTimeStampNow();
-  //const proposalEndTimeStamp = addDaysToTimeStamp(proposalStartTimeStamp, 4)
-  const proposalEndTimeStamp = proposalStartTimeStamp+120;
+  const proposalEndTimeStamp = addDaysToTimeStamp(proposalStartTimeStamp, votingTimeDays);
   const snapshotVoteId = await createProposal(
     config.snapshot.space,
     {title: proposalTitle, body: mdString},
@@ -272,7 +270,7 @@ export async function votingOffChainSetup(page) {
       }
     }
   });
-  log(`${config.name}: ${proposalId} - ${proposalTitle} vote live at ${snapShotUrl}`);
+  log(`${config.name}: ${proposalTitle} vote live at ${snapShotUrl}`);
   return [snapShotUrl, proposalEndTimeStamp];
 }
 
