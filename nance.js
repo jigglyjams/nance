@@ -327,6 +327,7 @@ async function startThread(proposal) {
 export async function handleDiscussions(){
   checkNotionDb(config.proposalDb.id, config.proposalDb.preDiscussionFilter).then(r=>{
     r.results.forEach((p) => {
+      p.url = notionGrab.getPublicUrl(p.url, config.notionPublicUrlPrefix);
       startThread(p).then((url)=> { 
         updateProperty(p.id, 'Discussion Thread', { url: url });
         log(`${config.name}: New proposal to dicsuss: ${p.url}`);

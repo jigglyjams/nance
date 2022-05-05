@@ -1,7 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "start": "export NODE_ENV='prod' && node nance.js",
+    "start": "export NODE_ENV='prod' && export CONFIG='config.juicebox.js' && node test/handleDiscussion.test.js",
     "dev": "export NODE_ENV='dev' && node nance.js"
   },
   "dependencies": {

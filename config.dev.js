@@ -21,6 +21,7 @@ export let config = {
     "quroum": 1,
     "passingRatio": 0.66
   },
+  "notionPublicUrlPrefix": "foil-flat-c43.notion.site",
   "proposalIdPrefix": "JBP-",
   "ipfsGateway": "https://gateway.pinata.cloud/ipfs",
   "proposalIdProperty": "Juicebox Proposal ID",

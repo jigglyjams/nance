@@ -1,3 +1,9 @@
+const NOTION_URL_PREFIX = 'www.notion.so';
+
+export const getPublicUrl = (url, publicUrl) => {
+  return url.replace(NOTION_URL_PREFIX, publicUrl);
+}
+
 export const title = (page) => {
   // notion api sometimes splits out the title into multiple objects, map into single string separated by ' '
   return page.properties.Name.title.map(t => {
