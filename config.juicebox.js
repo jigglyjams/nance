@@ -60,7 +60,7 @@ export let config = {
       {
         "property": "Name",
         "title": {
-          is_empty: false
+          "is_not_empty": true
         }
       }]
     },
