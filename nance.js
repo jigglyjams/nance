@@ -108,7 +108,7 @@ export async function temperatureCheckSetup(endDate) {
     // if the bot sent the message then edit it with instructions
     // this is neccessary in case someone else created the thread
     if (originalMessage.author.id === discord.user.id) {
-      originalMessage.edit(`${originalMessage.content}\n\n Temperature Check poll is now open! **Vote by reacting to this message.**`);
+      originalMessage.edit(`${originalMessage.content}\n\nTemperature Check poll is now open! **Vote by reacting to this message.**`);
     }
     await Promise.all([
       originalMessage.react(config.poll.voteYesEmoji),

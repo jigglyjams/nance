@@ -56,6 +56,12 @@ export let config = {
         "url": {
           "is_empty": true
         }
+      },
+      {
+        "property": "Name",
+        "title": {
+          is_empty: false
+        }
       }]
     },
     "discussionFilter": {
