@@ -41,7 +41,7 @@ async function checkNotionDb(dbId, dbFilter, dbSort=[]) {
   }
 }
 
-async function queueNextGovernanceAction(){
+export async function queueNextGovernanceAction(){
   try {
     const calendar = await checkNotionDb(config.governanceScheduleDb.id, config.governanceScheduleDb.filter, config.governanceScheduleDb.sorts)
     const nextEvent = calendar.results[0].properties

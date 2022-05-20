@@ -25,7 +25,7 @@ export let config = {
   "proposalIdProperty": "Juicebox Proposal ID",
   "governanceScheduleDb": {
     "location": "notion",
-    "id": "f667423e111d4c07b6703921f1ae1f3e",
+    "id": "09936865803248e38c82adbc3ed32137",
     "filter": {
       "property": "Date",
       "date": {
