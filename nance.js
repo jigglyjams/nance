@@ -60,14 +60,20 @@ export async function queueNextGovernanceAction(){
         closeTemperatureCheck()
       })
     } else if (nextAction === 'Governance Cycle, Execution'){
+      let reminderDate = nextDate;
+      reminderDate.setHours(reminderDate.getHours() - 1);
+      schedule.scheduleJob('VotingReminder', reminderDate, () => {
+        votingReminderMessage();
+      })
       action = schedule.scheduleJob('Execution', nextDate, () => {
-        //votingExecutionSetup();
+        closeVotingOffChain();
       })
     }
-    action.on('success', () => {
-      queueNextGovernanceAction()
-    })
+    // action.on('success', () => {
+    //   queueNextGovernanceAction()
+    // })
     log(`${config.name}: ${Object.keys(schedule.scheduledJobs)[0]} to run at ${nextDate}`);
+    console.log(schedule.scheduledJobs);
   } catch(e) {
     log(`${config.name}: no action to queue, check notion calendar!`, 'e')
   }
@@ -153,6 +159,13 @@ function pollPassCheck(yes, no) {
   } else {
     return false;
   }
+}
+
+export async function votingReminderMessage() {
+  const message = new MessageEmbed().setTitle('1 hour left to vote!').setDescription(
+    `https://snapshot.org/#/jbdao.eth\n<@&${config.alertRole}>`
+  );
+  await discord.channels.cache.get(config.channelId).send({embeds: [message]});
 }
 
 export async function closeTemperatureCheck() {
