@@ -60,11 +60,11 @@ export async function queueNextGovernanceAction(){
         closeTemperatureCheck()
       })
     } else if (nextAction === 'Governance Cycle, Execution'){
-      let reminderDate = nextDate;
-      reminderDate.setHours(reminderDate.getHours() - 1);
-      schedule.scheduleJob('VotingReminder', reminderDate, () => {
-        votingReminderMessage();
-      })
+      // let reminderDate = nextDate;
+      // reminderDate.setHours(reminderDate.getHours() - 1);
+      // schedule.scheduleJob('VotingReminder', reminderDate, () => {
+      //   votingReminderMessage();
+      // })
       action = schedule.scheduleJob('Execution', nextDate, () => {
         closeVotingOffChain();
       })
@@ -73,7 +73,7 @@ export async function queueNextGovernanceAction(){
     //   queueNextGovernanceAction()
     // })
     log(`${config.name}: ${Object.keys(schedule.scheduledJobs)[0]} to run at ${nextDate}`);
-    console.log(schedule.scheduledJobs);
+    //console.log(schedule.scheduledJobs);
   } catch(e) {
     log(`${config.name}: no action to queue, check notion calendar!`, 'e')
   }
@@ -314,6 +314,10 @@ export async function closeVotingOffChain(){
     const statusUpdate = offChainVotePassCheck(offChainVotingResults) ? 'Approved' : 'Cancelled';
     updateProperty(d.id, 'Status', { 'select': { name: statusUpdate }});
   }
+  const message = new MessageEmbed().setTitle('Offchain voting complete.').setDescription(
+    `Thanks for participating! The [database](https://${config.notionPublicUrlPrefix}/${config.proposalDb.id}) has been updated`
+  )
+  await discord.channels.cache.get(config.channelId).send({embeds: [message]});
   log(`${config.name}: closeVotingOffChain complete.`, 'g');
 }
 
