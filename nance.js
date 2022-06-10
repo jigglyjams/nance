@@ -7,7 +7,7 @@ import schedule from 'node-schedule';
 import * as notionGrab from './notionGrab.js';
 import { createProposal, getProposalVotes } from './snapshot.js';
 import { keys, configName } from './keys.js';
-import { log, sleep, addDaysToDate, unixTimeStampNow, addDaysToTimeStamp, getLastSlash } from './utils.js';
+import { log, sleep, addDaysToDate, unixTimeStampNow, addDaysToTimeStamp, getLastSlash, addSecondsToDate } from './utils.js';
 
 
 const config = (await import(`./${configName}`)).config
@@ -60,12 +60,12 @@ export async function queueNextGovernanceAction(){
         closeTemperatureCheck()
       })
     } else if (nextAction === 'Governance Cycle, Execution'){
-      // let reminderDate = nextDate;
-      // reminderDate.setHours(reminderDate.getHours() - 1);
-      // schedule.scheduleJob('VotingReminder', reminderDate, () => {
-      //   votingReminderMessage();
-      // })
-      action = schedule.scheduleJob('Execution', nextDate, () => {
+      let reminderDate = nextDate;
+      reminderDate.setHours(reminderDate.getHours() - 1);
+      schedule.scheduleJob('VotingReminder', reminderDate, () => {
+        votingReminderMessage();
+      })
+      action = schedule.scheduleJob('Execution', addSecondsToDate(nextDate, 120), () => {
         closeVotingOffChain();
       })
     }
